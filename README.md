@@ -97,7 +97,3 @@ Jika Anda ingin dashboard web, silakan buat dengan Flask yang membaca data dari 
 - **Tidak bisa connect ke Kafka?** Pastikan port `9092` terbuka dan service Kafka sudah up.
 - **Error Python module?** Install dependensi dengan `pip install ...` sesuai kebutuhan.
 
----
-
-## 👨‍💻 **Kontribusi & Lisensi**
-Project ini open-source, silakan dikembangkan dan dimodifikasi sesuai kebutuhan hackathon, riset, atau demo fintech! 
