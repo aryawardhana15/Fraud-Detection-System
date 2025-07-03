@@ -53,44 +53,6 @@ Sistem deteksi fraud transaksi real-time berbasis Kafka, AI (LSTM), dan MongoDB.
 
 ---
 
-## ▶️ **Cara Menjalankan Sistem**
-
-### 1. **Simulasi Transaksi ke Kafka**
-```bash
-python data_ingest_py.py
-```
-
-### 2. **Training Model AI (LSTM)**
-```bash
-python risk_train_py.py
-```
-
-### 3. **Deteksi Fraud Real-Time**
-```bash
-python risk_model_py.py
-```
-
-### 4. **(Opsional) Dashboard Monitoring**
-Jika Anda ingin dashboard web, silakan buat dengan Flask yang membaca data dari MongoDB.
-
----
-
-## 🧠 **Penjelasan Cara Kerja**
-
-1. **Simulasi transaksi**: Script membuat data transaksi (normal & fraud) dan mengirim ke Kafka.
-2. **Training AI**: Model LSTM dilatih dari data simulasi untuk mengenali pola fraud.
-3. **Deteksi real-time**: Script membaca transaksi dari Kafka, prediksi fraud, dan simpan alert ke MongoDB.
-4. **Dashboard**: (Opsional) Menampilkan alert dari MongoDB di browser.
-
----
-
-## ⚙️ **Kustomisasi & Pengembangan**
-- Anda bisa mengubah logika simulasi di `data_ingest_py.py`.
-- Model AI bisa diganti/ditingkatkan di `risk_train_py.py` dan `risk_model_py.py`.
-- Threshold deteksi fraud bisa diatur sesuai kebutuhan.
-- Dashboard bisa dikembangkan dengan Flask, React, dsb.
-
----
 
 ## ❓ **FAQ & Troubleshooting**
 - **Kafka/MongoDB tidak jalan?** Pastikan Docker Desktop sudah running, lalu cek dengan `docker ps`.
