@@ -53,7 +53,6 @@ Sistem deteksi fraud transaksi real-time berbasis Kafka, AI (LSTM), dan MongoDB.
 
 ---
 
-
 ## ❓ **FAQ & Troubleshooting**
 - **Kafka/MongoDB tidak jalan?** Pastikan Docker Desktop sudah running, lalu cek dengan `docker ps`.
 - **Tidak bisa connect ke Kafka?** Pastikan port `9092` terbuka dan service Kafka sudah up.
