@@ -11,6 +11,9 @@ from sklearn.preprocessing import StandardScaler
 import joblib
 import os
 from pymongo import MongoClient
+import statistics
+from collections import Counter
+from datetime import datetime
 
 class FraudDetectionLSTM(nn.Module):
     """
@@ -268,17 +271,92 @@ def save_alert_to_mongo(alert_data):
     alerts = db['alerts']
     alerts.insert_one(alert_data)
 
+def get_user_history(user_id, limit=50):
+    """Ambil riwayat transaksi user dari MongoDB (maksimal limit terakhir)"""
+    client = MongoClient('mongodb://localhost:27017/')
+    db = client['finsheild']
+    alerts = db['alerts']
+    history = list(alerts.find({'user_id': user_id}).sort('timestamp', -1).limit(limit))
+    return history
+
+def compute_user_profile(user_history):
+    """Hitung statistik profil user dari riwayat transaksi"""
+    if not user_history:
+        return None
+    amounts = [t.get('amount', 0) for t in user_history if 'amount' in t]
+    hours = []
+    locations = []
+    for t in user_history:
+        ts = t.get('timestamp')
+        if ts:
+            try:
+                dt = datetime.fromisoformat(ts.replace('Z', '+00:00'))
+                hours.append(dt.hour)
+            except:
+                pass
+        loc = t.get('location')
+        if loc:
+            locations.append(loc)
+    profile = {
+        'mean_amount': statistics.mean(amounts) if amounts else 0,
+        'std_amount': statistics.stdev(amounts) if len(amounts) > 1 else 1,
+        'fav_hour': Counter(hours).most_common(1)[0][0] if hours else None,
+        'fav_location': Counter(locations).most_common(1)[0][0] if locations else None,
+        'locations': set(locations)
+    }
+    return profile
+
+def compute_behavior_score(transaction, user_profile):
+    """Hitung skor penyimpangan perilaku user (semakin tinggi = semakin menyimpang)"""
+    if not user_profile:
+        return 0.5  # Netral jika tidak ada data
+    score = 0.0
+    # Outlier amount
+    amount = transaction.get('amount', 0)
+    mean = user_profile['mean_amount']
+    std = user_profile['std_amount']
+    if std < 1: std = 1  # Hindari div 0
+    z = abs(amount - mean) / std
+    if z > 2:
+        score += 0.4  # Outlier amount
+    elif z > 1:
+        score += 0.2
+    # Outlier hour
+    ts = transaction.get('timestamp')
+    if ts and user_profile['fav_hour'] is not None:
+        try:
+            dt = datetime.fromisoformat(ts.replace('Z', '+00:00'))
+            hour = dt.hour
+            if abs(hour - user_profile['fav_hour']) > 4:
+                score += 0.2
+        except:
+            pass
+    # Outlier location
+    loc = transaction.get('location')
+    if loc and user_profile['fav_location']:
+        if loc != user_profile['fav_location']:
+            score += 0.2
+        if loc not in user_profile['locations']:
+            score += 0.2
+    return min(score, 1.0)
+
 def process_transaction(transaction, detector, threshold=0.7):
     # Prediksi fraud score
     fraud_score = detector.predict_custom_model(transaction)
+    # Behavior profiling
+    user_id = transaction.get('user_id')
+    user_history = get_user_history(user_id, limit=50)
+    user_profile = compute_user_profile(user_history)
+    user_behavior_score = compute_behavior_score(transaction, user_profile)
     # Jika skor di atas threshold, simpan ke MongoDB
     if fraud_score >= threshold:
         alert_data = transaction.copy()
         alert_data['fraud_score'] = fraud_score
+        alert_data['user_behavior_score'] = user_behavior_score
         save_alert_to_mongo(alert_data)
-        print(f"[ALERT] Fraud detected! Saved to MongoDB: {alert_data['transaction_id']} (score={fraud_score:.2f})")
+        print(f"[ALERT] Fraud detected! Saved to MongoDB: {alert_data['transaction_id']} (score={fraud_score:.2f}, behavior={user_behavior_score:.2f})")
     else:
-        print(f"[OK] Transaction normal: {transaction['transaction_id']} (score={fraud_score:.2f})")
+        print(f"[OK] Transaction normal: {transaction['transaction_id']} (score={fraud_score:.2f}, behavior={user_behavior_score:.2f})")
 
 if __name__ == "__main__":
     # Contoh main loop sederhana

@@ -17,7 +17,7 @@ def to_datetime_ict_filter(value):
         dt = datetime.fromisoformat(value.replace('Z', '+00:00'))
         # Tambah 7 jam untuk ICT
         dt_ict = dt + timedelta(hours=7)
-        return dt_ict.strftime('%Y-%m-%d %H:%M:%S')
+        return dt_ict.strftime('%Y-%m-%d %H:%M:%S') 
     except Exception:
         return value
 
@@ -50,6 +50,15 @@ def index():
         if '_id' in alert and not isinstance(alert['_id'], str):
             alert['_id'] = str(alert['_id'])
     return render_template('index.html', alerts=alerts, start_date=start_date or '', end_date=end_date or '')
+
+@app.route('/user/<user_id>', methods=['GET'])
+def user_history(user_id):
+    # Ambil semua transaksi/alert user dari MongoDB
+    alerts = list(db_alerts.find({'user_id': user_id}).sort('timestamp', -1))
+    for alert in alerts:
+        if '_id' in alert and not isinstance(alert['_id'], str):
+            alert['_id'] = str(alert['_id'])
+    return render_template('index.html', alerts=alerts, user_id=user_id, start_date='', end_date='')
 
 if __name__ == '__main__':
     app.run(debug=True) 

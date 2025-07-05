@@ -471,6 +471,18 @@
             <canvas id="fraudChart" height="260" style="min-height:220px;max-height:340px;width:100%;"></canvas>
         </div>
         
+        <!-- Dropdown user selector -->
+        <div style="margin-bottom:18px;">
+            <form method="get" action="/user/" id="userForm" style="display:inline-block;">
+                <label for="user_id">Lihat transaksi per user:</label>
+                <input type="text" id="user_id" name="user_id" placeholder="Masukkan User ID" value="{{ user_id if user_id else '' }}" style="padding:6px 10px;border-radius:6px;border:1px solid #ccc;">
+                <button type="submit" style="padding:6px 16px;border-radius:6px;background:var(--primary);color:#fff;border:none;">Lihat</button>
+            </form>
+            {% if user_id %}
+            <a href="/" class="reset-link" style="margin-left:10px;">Kembali ke semua user</a>
+            {% endif %}
+        </div>
+        
         <table>
             <tr>
                 <th>Timestamp (ICT)</th>
@@ -480,12 +492,14 @@
                 <th>Location</th>
                 <th>Card Type</th>
                 <th>Fraud Score (%)</th>
+                <th>Behavior Score</th>
+                <th>Lihat User</th>
             </tr>
             {% if alerts|length == 0 %}
-            <tr><td colspan="7" class="no-data"><i class="fas fa-shield-alt"></i> No suspicious transactions detected</td></tr>
+            <tr><td colspan="9" class="no-data"><i class="fas fa-shield-alt"></i> No suspicious transactions detected</td></tr>
             {% endif %}
             {% for alert in alerts %}
-            <tr>
+            <tr {% if alert.get('user_behavior_score', 0) > 0.5 %} style="background:#fff3e0;" {% endif %}>
                 <td>
                     {% if alert['timestamp'] %}
                         {{ alert['timestamp'] | to_datetime_ict }}
@@ -508,6 +522,13 @@
                 {% else %}
                     <td><span class="risk-badge low-risk">{{ score }}%</span></td>
                 {% endif %}
+                <td>
+                  {% set bscore = alert.get('user_behavior_score', 0) %}
+                  <span style="font-weight:600; color:{% if bscore > 0.5 %}#b30000{% else %}#333{% endif %};">{{ '%.2f'|format(bscore) }}</span>
+                </td>
+                <td>
+                  <a href="/user/{{ alert['user_id'] }}" class="reset-link" style="font-size:0.95em;">Lihat</a>
+                </td>
             </tr>
             {% endfor %}
         </table>
