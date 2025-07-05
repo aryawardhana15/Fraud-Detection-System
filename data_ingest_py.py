@@ -151,7 +151,7 @@ def main():
     
     # Wait for Kafka to be ready
     print("Waiting for Kafka to be ready...")
-    time.sleep(10)
+    time.sleep(20)
     
     # Create and start the producer
     producer = KafkaTransactionProducer()
