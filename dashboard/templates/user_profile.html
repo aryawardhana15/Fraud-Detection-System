@@ -1,0 +1,145 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>User Profile - Fraud Dashboard</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@700;500;400&family=Roboto:wght@300;400;500&display=swap" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        body { font-family: 'Roboto', sans-serif; background: linear-gradient(135deg, #f7f7f7 0%, #fff0f0 100%); margin: 0; padding: 0; }
+        .container { max-width: 1100px; margin: 30px auto; background: #fff; border-radius: 14px; box-shadow: 0 4px 20px rgba(179,0,0,0.10); padding: 32px 28px; }
+        h2 { font-family: 'Montserrat', sans-serif; color: #b30000; margin-bottom: 18px; }
+        .summary { display: flex; gap: 32px; margin-bottom: 28px; flex-wrap: wrap; }
+        .summary-item { background: #fff0f0; border-radius: 10px; padding: 18px 28px; min-width: 180px; text-align: center; box-shadow: 0 2px 8px rgba(179,0,0,0.06); }
+        .summary-item h4 { margin: 0 0 6px 0; font-size: 1rem; color: #b30000; font-weight: 600; }
+        .summary-item .value { font-size: 1.5rem; font-weight: 700; font-family: 'Montserrat', sans-serif; }
+        .charts { display: flex; gap: 32px; flex-wrap: wrap; margin-bottom: 32px; }
+        .chart-box { background: #fff; border-radius: 10px; box-shadow: 0 2px 8px rgba(179,0,0,0.06); padding: 18px 18px 8px 18px; flex: 1; min-width: 320px; }
+        table { border-collapse: collapse; width: 100%; background: #fff; box-shadow: 0 2px 8px rgba(179,0,0,0.06); border-radius: 10px; overflow: hidden; margin-bottom: 20px; }
+        th, td { border: none; padding: 12px 10px; text-align: center; }
+        th { background: linear-gradient(90deg, #b30000 0%, #ff6666 100%); color: #fff; font-size: 0.95rem; font-weight: 600; text-transform: uppercase; font-family: 'Montserrat', sans-serif; }
+        tr:nth-child(even) { background: #f9f9f9; }
+        tr:hover { background: #ffeaea; transition: 0.2s; }
+        .risk-badge { color: #fff; border-radius: 20px; padding: 5px 10px; font-weight: 600; font-size: 0.85rem; display: inline-block; min-width: 60px; text-align: center; }
+        .high-risk { background: #b30000; animation: blink 1.2s infinite alternate; }
+        .medium-risk { background: #ff9900; }
+        .low-risk { background: #009900; }
+        .trigger-risk { background: #2d0a5b; animation: blink 1.2s infinite alternate; }
+        @keyframes blink { 0% { opacity: 1; } 100% { opacity: 0.7; } }
+        .back-link { color: #b30000; text-decoration: none; font-weight: 600; margin-bottom: 18px; display: inline-block; }
+        .back-link:hover { text-decoration: underline; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <a href="/" class="back-link">&larr; Kembali ke Dashboard</a>
+        <h2>User Profile: {{ user_id }}</h2>
+        <div class="summary">
+            <div class="summary-item"><h4>Total Transaksi</h4><div class="value">{{ total_transaksi }}</div></div>
+            <div class="summary-item"><h4>Total Alert</h4><div class="value">{{ total_alert }}</div></div>
+            <div class="summary-item"><h4>Rata-rata Nominal</h4><div class="value">${{ '%.2f'|format(avg_amount) }}</div></div>
+            <div class="summary-item"><h4>Rata-rata Behavior Score</h4><div class="value">{{ '%.2f'|format(avg_behavior) }}</div></div>
+        </div>
+        <div class="charts">
+            <div class="chart-box">
+                <canvas id="amountChart" height="180"></canvas>
+            </div>
+            <div class="chart-box">
+                <canvas id="behaviorChart" height="180"></canvas>
+            </div>
+        </div>
+        <table>
+            <tr>
+                <th>Timestamp (ICT)</th>
+                <th>Amount</th>
+                <th>Merchant</th>
+                <th>Location</th>
+                <th>Card Type</th>
+                <th>Fraud Score (%)</th>
+                <th>Behavior Score</th>
+            </tr>
+            {% for alert in alerts %}
+            <tr {% if alert.get('user_behavior_score', 0) > 0.5 %} style="background:#fff3e0;" {% endif %}>
+                <td>
+                    {% if alert['timestamp'] %}
+                        {{ alert['timestamp'] | to_datetime_ict }}
+                    {% else %}
+                        -
+                    {% endif %}
+                </td>
+                <td>${{ '%.2f'|format(alert['amount']) }}</td>
+                <td>{{ alert['merchant'] }}</td>
+                <td>{{ alert['location'] }}</td>
+                <td>{{ alert['card_type'] }}</td>
+                {% set score = (alert.get('fraud_score', 0) * 100) | round(0) %}
+                {% if score > 90 %}
+                    <td><span class="risk-badge trigger-risk">{{ score }}%</span></td>
+                {% elif score >= 80 %}
+                    <td><span class="risk-badge high-risk">{{ score }}%</span></td>
+                {% elif score >= 50 %}
+                    <td><span class="risk-badge medium-risk">{{ score }}%</span></td>
+                {% else %}
+                    <td><span class="risk-badge low-risk">{{ score }}%</span></td>
+                {% endif %}
+                <td>
+                  {% set bscore = alert.get('user_behavior_score', 0) %}
+                  <span style="font-weight:600; color:{% if bscore > 0.5 %}#b30000{% else %}#333{% endif %};">{{ '%.2f'|format(bscore) }}</span>
+                </td>
+            </tr>
+            {% endfor %}
+        </table>
+    </div>
+    <script>
+        // Data untuk grafik
+        const alerts = {{ alerts|tojson|safe }};
+        // Grafik Amount
+        const amountCtx = document.getElementById('amountChart').getContext('2d');
+        const amountLabels = alerts.map(a => a.timestamp ? a.timestamp.slice(0,19).replace('T',' ') : '-');
+        const amountData = alerts.map(a => a.amount);
+        new Chart(amountCtx, {
+            type: 'line',
+            data: {
+                labels: amountLabels.reverse(),
+                datasets: [{
+                    label: 'Nominal Transaksi',
+                    data: amountData.reverse(),
+                    borderColor: '#b30000',
+                    backgroundColor: 'rgba(179,0,0,0.08)',
+                    tension: 0.2,
+                    pointRadius: 2,
+                    fill: true
+                }]
+            },
+            options: {
+                plugins: { legend: { display: false } },
+                scales: { x: { display: false }, y: { beginAtZero: true } },
+                animation: { duration: 900 }
+            }
+        });
+        // Grafik Behavior Score
+        const behaviorCtx = document.getElementById('behaviorChart').getContext('2d');
+        const behaviorData = alerts.map(a => a.user_behavior_score || 0);
+        new Chart(behaviorCtx, {
+            type: 'line',
+            data: {
+                labels: amountLabels.reverse(),
+                datasets: [{
+                    label: 'Behavior Score',
+                    data: behaviorData.reverse(),
+                    borderColor: '#2d0a5b',
+                    backgroundColor: 'rgba(45,10,91,0.08)',
+                    tension: 0.2,
+                    pointRadius: 2,
+                    fill: true
+                }]
+            },
+            options: {
+                plugins: { legend: { display: false } },
+                scales: { x: { display: false }, y: { beginAtZero: true, max: 1 } },
+                animation: { duration: 900 }
+            }
+        });
+    </script>
+</body>
+</html> 

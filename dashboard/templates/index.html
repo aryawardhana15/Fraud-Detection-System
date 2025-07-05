@@ -473,11 +473,12 @@
         
         <!-- Dropdown user selector -->
         <div style="margin-bottom:18px;">
-            <form method="get" action="/user/" id="userForm" style="display:inline-block;">
+            <form id="userForm" style="display:inline-block;">
                 <label for="user_id">Lihat transaksi per user:</label>
                 <input type="text" id="user_id" name="user_id" placeholder="Masukkan User ID" value="{{ user_id if user_id else '' }}" style="padding:6px 10px;border-radius:6px;border:1px solid #ccc;">
                 <button type="submit" style="padding:6px 16px;border-radius:6px;background:var(--primary);color:#fff;border:none;">Lihat</button>
             </form>
+            <span id="userFormError" style="color:#b30000;font-weight:500;margin-left:10px;display:none;">User ID tidak boleh kosong!</span>
             {% if user_id %}
             <a href="/" class="reset-link" style="margin-left:10px;">Kembali ke semua user</a>
             {% endif %}
@@ -619,6 +620,21 @@
             }
         }
     });
+
+    // Form filter user ke halaman user profile
+    document.getElementById('userForm').onsubmit = function(e) {
+        e.preventDefault();
+        var userId = document.getElementById('user_id').value.trim();
+        var errorSpan = document.getElementById('userFormError');
+        if (!userId) {
+            errorSpan.style.display = 'inline';
+            return false;
+        } else {
+            errorSpan.style.display = 'none';
+        }
+        window.location.href = '/user/' + encodeURIComponent(userId);
+        return false;
+    };
 
     </script>
 </body>
